@@ -112,7 +112,6 @@ GET https://<api-id>.execute-api.<region>.amazonaws.com/<stage>/vehicles/all
 
 1. 在生产环境中应添加适当的身份验证和授权机制
 2. 考虑为 Lambda 函数添加日志记录和监控
-3. 考虑使用 AWS SAM 或 AWS CDK 进行更简单的部署
-4. 适当配置 DynamoDB 的容量和扩展策略以满足流量需求
+3. 适当配置 DynamoDB 的容量和扩展策略以满足流量需求
 
 通过使用 API Gateway、Lambda 和 DynamoDB，这个系统可以自动扩展以处理不同级别的流量，同时仅为实际使用的资源付费。
