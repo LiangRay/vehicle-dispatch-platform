@@ -60,6 +60,13 @@ aws cloudformation deploy \
   --stack-name vehicle-dispatch-platform \
   --capabilities CAPABILITY_IAM
 ```
+如果已手动创建DynamoDB和Lambda，请使用以下方式：
+```bash
+aws cloudformation deploy \
+  --template-file infrastructure/cloudformation_template_test.yaml \
+  --stack-name vehicle-dispatch-platform \
+  --capabilities CAPABILITY_IAM
+```
 
 ## API 使用示例
 
