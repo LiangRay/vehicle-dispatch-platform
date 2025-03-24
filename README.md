@@ -37,6 +37,14 @@ python scripts/create_dynamodb_table.py
 cd lambda_functions
 pip install -r requirements.txt -t .
 zip -r ../vehicle_handler.zip .
+
+aws iam create-role --role-name lambda-dynamodb-role --assume-role-policy-document '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": {"Service": "lambda.amazonaws.com"},"Action": "sts:AssumeRole"}]}' --region us-west-2
+
+aws iam attach-role-policy --role-name lambda-dynamodb-role --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess --region us-west-2
+
+aws iam attach-role-policy --role-name lambda-dynamodb-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole --region us-west-2
+
+
 aws lambda create-function \
   --function-name vehicle-dispatch-handler \
   --runtime python3.9 \
