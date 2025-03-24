@@ -5,6 +5,12 @@
 - AWS API Gateway
 - AWS Lambda
 - AWS DynamoDB
+## 架构图
+
+
+图片
+
+
 ## 项目结构
 ```
 vehicle-dispatch-platform/
