@@ -1,0 +1,204 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Vehicle Dispatch Platform - AWS Serverless Implementation'
+
+Parameters:
+  StageName:
+    Type: String
+    Default: dev
+    Description: API Gateway stage name
+
+Resources:
+  # DynamoDB 表
+  VehicleTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: VehicleDispatch
+      AttributeDefinitions:
+        - AttributeName: vin
+          AttributeType: S
+      KeySchema:
+        - AttributeName: vin
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  # Lambda 执行角色
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                Resource: !GetAtt VehicleTable.Arn
+
+  # Lambda 函数
+  VehicleHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: vehicle-dispatch-handler
+      Handler: vehicle_handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.9
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          VEHICLE_TABLE_NAME: !Ref VehicleTable
+      Code:
+        ZipFile: |
+          # 将lambda_functions/vehicle_handler.py的内容放在这里
+          # 或者使用S3桶部署
+
+  # API Gateway
+  VehicleApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: VehicleDispatchAPI
+      Description: API for Vehicle Dispatch Platform
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Gateway 资源和方法
+  VehicleResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ParentId: !GetAtt VehicleApi.RootResourceId
+      PathPart: vehicles
+
+  AllVehiclesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ParentId: !Ref VehicleResource
+      PathPart: all
+
+  VehicleVinResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ParentId: !Ref VehicleResource
+      PathPart: '{vin}'
+
+  # GET /vehicles?vin=xxx
+  GetVehicleMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ResourceId: !Ref VehicleResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VehicleHandlerFunction.Arn}/invocations
+
+  # POST /vehicles
+  PostVehicleMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ResourceId: !Ref VehicleResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VehicleHandlerFunction.Arn}/invocations
+
+  # GET /vehicles/all
+  GetAllVehiclesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ResourceId: !Ref AllVehiclesResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VehicleHandlerFunction.Arn}/invocations
+
+  # PUT /vehicles/{vin}
+  PutVehicleMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ResourceId: !Ref VehicleVinResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VehicleHandlerFunction.Arn}/invocations
+
+  # DELETE /vehicles/{vin}
+  DeleteVehicleMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ResourceId: !Ref VehicleVinResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VehicleHandlerFunction.Arn}/invocations
+
+  # OPTIONS 方法 (用于CORS)
+  OptionsVehicleMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VehicleApi
+      ResourceId: !Ref VehicleResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VehicleHandlerFunction.Arn}/invocations
+
+  # API 部署
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetVehicleMethod
+      - PostVehicleMethod
+      - GetAllVehiclesMethod
+      - PutVehicleMethod
+      - DeleteVehicleMethod
+      - OptionsVehicleMethod
+    Properties:
+      RestApiId: !Ref VehicleApi
+      StageName: !Ref StageName
+
+  # Lambda 调用权限
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt VehicleHandlerFunction.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VehicleApi}/*/*
+
+Outputs:
+  ApiEndpoint:
+    Description: URL of the API endpoint
+    Value: !Sub https://${VehicleApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/vehicles
