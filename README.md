@@ -7,8 +7,8 @@
 - AWS DynamoDB
 ## 架构图
 
+<img width="704" alt="截屏2025-03-24 16 20 59" src="https://github.com/user-attachments/assets/4ae44fae-11b0-4960-bf40-1e2632419f88" />
 
-图片
 
 
 ## 项目结构
